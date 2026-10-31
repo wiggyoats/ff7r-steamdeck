@@ -1,0 +1,75 @@
+TITLE: Steam Deck: 60 fps at 1280x800 with FSR upscaling (one script install)
+
+DESCRIPTION (short summary field):
+Get FF7 Remake Intergrade to ~60 fps at the Deck's full 1280x800 16:10, or a sharp 40 fps with FSR 4.1, using open source mods and a single install script.
+
+================ SECTION 1: Overview ================
+
+[h1]What you get[/h1]
+FF7 Remake Intergrade runs badly on the Steam Deck. This guide sets it up to run at [b]~60 fps at the Deck's full 1280x800 (16:10, no black bars)[/b], or at a sharper 40 fps with [b]FSR 4.1[/b] (AMD's new INT8 "Lite" model made for handhelds).
+
+Measured on a Steam Deck LCD, Sector 7 Slums, frame rate uncapped:
+[table]
+[tr][th]Setup[/th][th]Average fps[/th][th]1% low[/th][/tr]
+[tr][td]Full resolution, no upscaling[/td][td]23.5[/td][td][/td][/tr]
+[tr][td][b]60 preset[/b] (FSR 3.1, 58% render scale)[/td][td]64.3[/td][td]48.7[/td][/tr]
+[tr][td][b]40 preset[/b] (FSR 4.1 INT8 Lite, 67%)[/td][td]55.7[/td][td]40.8[/td][/tr]
+[/table]
+Combat and big areas are heavier, so the 60 preset dips into the 40s there. The 40 preset holds a 40 fps cap. Expect extra stutter in the first hour while shaders compile.
+
+Everything (script, patch, benchmarks) is open source: [url=https://github.com/wiggyoats/ff7r-steamdeck]github.com/wiggyoats/ff7r-steamdeck[/url]
+
+================ SECTION 2: Install ================
+
+[h1]Install (about 10 minutes)[/h1]
+You need: the game played once without mods, and a free Nexus Mods account.
+
+[olist]
+[*]Switch to [b]Desktop Mode[/b] (Steam button > Power > Switch to Desktop).
+[*]Download [b]FFVIIHook[/b] from [url=https://www.nexusmods.com/finalfantasy7remake/mods/74]Nexus Mods[/url] and put its [b]xinput1_3.dll[/b] into [b]FINAL FANTASY VII REMAKE/End/Binaries/Win64[/b] (Steam: right click the game > Manage > Browse local files).
+[*]Open [b]Konsole[/b] and run these two lines:
+[code]curl -fLO https://raw.githubusercontent.com/wiggyoats/ff7r-steamdeck/main/install.sh
+bash install.sh[/code]
+For the sharper 40 fps preset, run [b]bash install.sh --preset 40[/b] instead.
+[*]In Steam: right click the game > Properties > [b]Launch Options[/b]:
+[code]WINEDLLOVERRIDES="xinput1_3,dsound,dxgi=n,b" %COMMAND% -dx11[/code]
+[*]Start the game. In Graphics settings pick the resolution that used to say [b]3840x2160[/b] (it is now 1280x800), and frame rate [b]60[/b].
+[*][b]40 preset only:[/b] quick access menu (... button) > Performance: [b]Refresh Rate 40[/b], [b]Frame Limit 40[/b].
+[/olist]
+
+The script finds the game on internal storage or SD card, backs up the files it replaces to [b]~/ff7r-deck-backup[/b], downloads the mods (checksum verified), writes the settings and installs the Visual C++ runtime the mod needs into the game's prefix.
+
+[b]Uninstall:[/b] [b]bash install.sh --uninstall[/b], then clear the launch options.
+
+================ SECTION 3: How it works ================
+
+[h1]How it works[/h1]
+[list]
+[*]The game's own dynamic resolution only works in DX12. The mods need DX11, where the game renders at full resolution and the Deck can't keep up.
+[*][url=https://github.com/Filoppi/Luma-Framework]Luma[/url] for FF7R replaces the game's anti-aliasing with FSR. The official build only upscales when dynamic resolution is running, so on the Deck it would just smooth a low-resolution image that the game then stretches. This guide uses a [url=https://github.com/wiggyoats/Luma-Framework/tree/ff7r-fixed-scale-upscaling]patched build[/url] that properly upscales with a fixed render scale.
+[*][url=https://github.com/optiscaler/OptiScaler]OptiScaler[/url] unlocks FSR 4.1 (INT8 Lite) on the Deck's GPU under Proton.
+[*][url=https://codeberg.org/Lyall/FF7RemakeFix]FF7RemakeFix[/url] by Lyall gives real 16:10.
+[*][url=https://www.nexusmods.com/finalfantasy7remake/mods/74]FFVIIHook[/url] by emoose lets the game read Engine.ini settings.
+[/list]
+
+[h2]Settings that cost the most on the Deck[/h2]
+Every candidate setting was benchmarked. These give big gains for little visible difference at 800p:
+[table]
+[tr][th]Engine.ini[/th][th]Gain[/th][th]Visible difference[/th][/tr]
+[tr][td]r.Shadow.MaxCSMResolution=1024, r.Shadow.CSM.MaxCascades=2[/td][td]+15 fps[/td][td]Some shadow pop-in in big areas[/td][/tr]
+[tr][td]r.VolumetricFog.GridPixelSize=16, GridSizeZ=32, HistoryMissSupersampleCount=1[/td][td]+4 fps[/td][td]None noticed[/td][/tr]
+[tr][td]r.TranslucencyLightingVolumeDim=24[/td][td]+4 fps[/td][td]None noticed[/td][/tr]
+[/table]
+Motion blur, ambient occlusion, reflections, material quality, view distance and detail mode gain nothing when lowered.
+
+================ SECTION 4: Troubleshooting ================
+
+[h1]Troubleshooting[/h1]
+[list]
+[*][b]Game closes on start:[/b] the Visual C++ runtime install into the prefix failed. Run the script again.
+[*][b]Still blurry or no fps change:[/b] FFVIIHook isn't loaded (check xinput1_3.dll is next to ff7remake_.exe, and the launch options).
+[*][b]Black bars:[/b] you picked 1280x720 instead of the resolution that replaced 3840x2160.
+[/list]
+
+[h1]Credits[/h1]
+Luma for FF7R by Izueh and Pumbo, OptiScaler team, AMD FSR, FF7RemakeFix by Lyall, FFVIIHook by emoose. None of them is affiliated with this guide, so please report problems in the comments or on GitHub, not to them.
