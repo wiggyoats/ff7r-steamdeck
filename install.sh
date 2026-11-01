@@ -158,14 +158,30 @@ mkdir -p "$CONFIG"
 } > "$CONFIG/Engine.ini"
 
 # --- Visual C++ runtime in the game's prefix (Luma needs a newer one than the prefix has) ---
-PROTON=$(ls -d "$STEAM"/steamapps/common/Proton*/proton 2>/dev/null | sort -V | tail -1 || true)
-if [ -d "$PFX" ] && [ -n "$PROTON" ]; then
-    say "installing the Visual C++ runtime into the game's prefix"
+# Use the Proton the prefix was last run with (Steam writes it to config_info), else the newest installed one
+PROTON=$(sed -n 2p "$(dirname "$PFX")/config_info" 2>/dev/null | sed -n 's|/files/.*||p')/proton
+[ -f "$PROTON" ] || PROTON=$(ls -d "$STEAM"/steamapps/common/Proton*/proton 2>/dev/null | sort -V | tail -1 || true)
+# FileVersion of msvcp140.dll in the prefix (0 if missing); Luma needs 14.40 or newer
+vc_version() {
+    python3 - "$PFX/drive_c/windows/system32/msvcp140.dll" <<'PYEOF' 2>/dev/null || echo 0
+import sys, re
+d = open(sys.argv[1], "rb").read().decode("utf-16-le", "ignore")
+m = re.search(r"FileVersion\W*(\d+)\.(\d+)", d)
+print(int(m.group(1)) * 100 + int(m.group(2)) if m else 0)
+PYEOF
+}
+if [ ! -d "$PFX" ] || [ ! -f "$PROTON" ]; then
+    say "warning: no Proton prefix yet. Start the game once without mods, then run this again"
+elif [ "$(vc_version)" -ge 1440 ]; then
+    say "the Visual C++ runtime in the game's prefix is already new enough"
+else
+    say "installing the Visual C++ runtime into the game's prefix (up to 5 minutes)"
     curl -fsSL --retry 3 -o "$TMP/vc_redist.x64.exe" "$VCREDIST_URL"
     STEAM_COMPAT_DATA_PATH="$(dirname "$PFX")" STEAM_COMPAT_CLIENT_INSTALL_PATH="$STEAM" \
-        "$PROTON" run "$TMP/vc_redist.x64.exe" /install /quiet /norestart >/dev/null 2>&1 || say "warning: the Visual C++ runtime install failed, see the README"
-else
-    say "warning: no Proton prefix yet. Start the game once without mods, then run this again"
+        timeout 300 "$PROTON" run "$TMP/vc_redist.x64.exe" /install /quiet /norestart >/dev/null 2>&1 || true
+    # the installer can leave Wine running after it finishes
+    WINEPREFIX="$PFX" timeout 30 "$(dirname "$PROTON")/files/bin/wineserver" -k 2>/dev/null || true
+    [ "$(vc_version)" -ge 1440 ] || say "warning: the Visual C++ runtime install failed, see the README"
 fi
 
 [ -f "$WIN64/xinput1_3.dll" ] || say "FFVIIHook (xinput1_3.dll) is missing: get it from Nexus Mods (see the README), otherwise the render scale is ignored"
