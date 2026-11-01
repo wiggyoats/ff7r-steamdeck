@@ -1,5 +1,7 @@
 # Final Fantasy VII Remake Intergrade on Steam Deck: 60 fps with FSR upscaling
 
+<img src="guide-image.png" width="320" alt="FF7 Remake on Steam Deck at 60 fps">
+
 FF7 Remake Intergrade runs badly on the Steam Deck. This sets it up to run at **~60 fps at the Deck's full 1280x800 (16:10)**, or at a
 sharper 40 fps with **FSR 4.1** (AMD's new INT8 "Lite" model made for handhelds), using open source mods and one install script.
 
